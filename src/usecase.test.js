@@ -41,6 +41,8 @@ describe('imperative', () => {
     however may be somehow possible to use babel-typescript etc...
   - we're using generators which are difficult with typings
     however there may be improvements in TS3.6
+  - So far we're not mixing async calls into the generators yet, so we expect to always have them wrapped as TaskEither.
+  // some info about that at ; https://dev.to/nestedsoftware/asynchronous-generators-and-pipelines-in-javascript--1h62
 */
 describe('declarative', () => {
   function* usecase(input) {
