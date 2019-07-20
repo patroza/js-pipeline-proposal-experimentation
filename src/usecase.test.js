@@ -73,7 +73,7 @@ describe('declarative', () => {
     expect(result.left).toEqual('fail')
   })
 
-  describe('works with nested generators ;-) without manual run', () => {
+  describe('nested generators ;-) without having to invoke `run` manually', () => {
     function* validateGen(input) {
       if (input.a !== 1) { return yield E.left('fail') }
       return input
@@ -137,7 +137,7 @@ describe('declarative async', () => {
     expect(result.left).toEqual('fail')
   })
 
-  describe('works with nested generators ;-) without manual run', () => {
+  describe('nested generators ;-) without having to invoke `run` manually', () => {
     function* validateGenAsync(input) {
       if (input.a !== 1) { return yield TE.left('fail') }
       return input
@@ -190,6 +190,7 @@ const run = (gen) => {
   while (!result.done) {
     result = gen.next(val)
     val = result.value
+    // support nested generators, so you don't need to worry about them.
     if (isGenerator(val)) {
       val = run(val)
     }
@@ -201,13 +202,13 @@ const run = (gen) => {
   return E.right(val)
 }
 
-
 const runAsync = async (gen) => {
   let val = undefined
   let result = { done: false }
   while (!result.done) {
     result = gen.next(val)
     val = typeof result.value === 'function' ? await result.value() : result.value
+    // support nested generators, so you don't need to worry about them.
     if (isGenerator(val)) {
       val = await runAsync(val)
     }
