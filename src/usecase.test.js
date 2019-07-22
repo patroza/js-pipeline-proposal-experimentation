@@ -4,8 +4,9 @@ import { isTSAnyKeyword } from '@babel/types';
 
 describe('imperative', () => {
   const usecase = (input) => {
-    const validatedInput = input |> validate
-    if (validatedInput._tag === "left") { return validatedInput }
+    const validatedInput = input
+      |> validate
+    if (validatedInput._tag === "Left") { return E.left('mapped: ' + validatedInput.left) }
   
     return validatedInput
   }
@@ -31,7 +32,7 @@ describe('imperative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Left')
-    expect(result.left).toEqual('fail')
+    expect(result.left).toEqual('mapped: fail')
   })
 })
 
@@ -46,7 +47,11 @@ describe('imperative', () => {
 */
 describe('declarative', () => {
   function* usecase(input) {
-    const validatedInput = yield input |> validate
+    const validatedInput = (
+      yield input
+      |> validate
+      |> E.mapLeft(x => 'mapped: ' + x)(#)
+    )
 
     return true
   }
@@ -70,7 +75,7 @@ describe('declarative', () => {
     }
     const result = run(usecase(input))
     expect(result._tag).toBe('Left')
-    expect(result.left).toEqual('fail')
+    expect(result.left).toEqual('mapped: fail')
   })
 
   describe('nested generators ;-) without having to invoke `run` manually', () => {
@@ -79,8 +84,12 @@ describe('declarative', () => {
       return input
     }
     function* usecase(input) {
-      const validatedInput = yield input |> validateGen
-  
+      const validatedInput = (
+        yield input
+        |> validateGen
+        |> E.mapLeft(x => 'mapped: ' + x)(#)
+      )
+      
       return true
     }
 
@@ -103,14 +112,17 @@ describe('declarative', () => {
       }
       const result = run(usecase(input))
       expect(result._tag).toBe('Left')
-      expect(result.left).toEqual('fail')
+      expect(result.left).toEqual('mapped: fail')
     })
   })
 })
 
 describe('declarative async', () => {
   function* usecase(input) {
-    const validatedInput = yield input |> validateAsync
+    const validatedInput =
+      yield input
+      |> validateAsync
+      |> TE.mapLeft(x => 'mapped: ' + x)(#)
 
     return true
   }
@@ -134,7 +146,7 @@ describe('declarative async', () => {
     }
     const result = await runAsync(usecase(input))
     expect(result._tag).toBe('Left')
-    expect(result.left).toEqual('fail')
+    expect(result.left).toEqual('mapped: fail')
   })
 
   describe('nested generators ;-) without having to invoke `run` manually', () => {
@@ -143,7 +155,11 @@ describe('declarative async', () => {
       return input
     }
     function* usecase(input) {
-      const validatedInput = yield input |> validateGenAsync
+      const validatedInput =
+        yield input
+        |> validateGenAsync
+         // TODO: this will fail :/
+        |> TE.mapLeft(x => 'mapped: ' + x)(#)
   
       return true
     }
@@ -167,7 +183,7 @@ describe('declarative async', () => {
       }
       const result = await runAsync(usecase(input))
       expect(result._tag).toBe('Left')
-      expect(result.left).toEqual('fail')
+      expect(result.left).toEqual('mapped: fail')
     })
   })
 })
@@ -190,6 +206,7 @@ const run = (gen) => {
   while (!result.done) {
     result = gen.next(val)
     val = result.value
+    console.log('$result', result)
     // support nested generators, so you don't need to worry about them.
     if (isGenerator(val)) {
       val = run(val)
