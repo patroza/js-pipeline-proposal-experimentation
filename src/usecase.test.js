@@ -6,7 +6,7 @@ describe('imperative', () => {
   const usecase = (input) => {
     const validatedInput = input
       |> validate
-      |> map(x => ({...x, validated: true}))(#)
+      |> map(x => ({ ...x, validated: true }))(#)
     if (validatedInput._tag === "Left") { return left('mapped: ' + validatedInput.left) }
 
     return validatedInput
@@ -22,7 +22,7 @@ describe('imperative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({...input, validated: true})
+    expect(result.right).toEqual({ ...input, validated: true })
   })
 
 
@@ -55,10 +55,14 @@ const runableAsync = fnc => input => runAsync(fnc(input))
 */
 describe('declarative', () => {
   function* usecaseImpl(input) {
-      return yield input
+    const validatedInput = yield input
       |> validate
       |> mapLeft(x => 'mapped: ' + x)(#)
-      |> map(x => ({...x, validated: true}))(#)
+      |> map(x => ({ ...x, validated: true }))(#)
+
+    if (validatedInput.validated !== true) { throw new Error('da faq: ' + validatedInput.validated) }
+
+    return validatedInput
   }
 
   const usecase = runable(usecaseImpl)
@@ -73,7 +77,7 @@ describe('declarative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({...input, validated: true})
+    expect(result.right).toEqual({ ...input, validated: true })
   })
 
   it('works for the negative case', () => {
@@ -96,10 +100,12 @@ describe('declarative', () => {
     const validate = runable(validateGen)
 
     function* usecaseImpl(input) {
-      return yield input
-      |> validate
-      |> mapLeft(x => 'mapped: ' + x)(#)
-      |> map(x => ({...x, validated: true}))(#)
+      const validatedInput = yield input
+        |> validate
+        |> mapLeft(x => 'mapped: ' + x)(#)
+        |> map(x => ({ ...x, validated: true }))(#)
+
+      return validatedInput
     }
     const usecase = runable(usecaseImpl)
 
@@ -113,7 +119,7 @@ describe('declarative', () => {
       const result = usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual({...input, validated: true})
+      expect(result.right).toEqual({ ...input, validated: true })
     })
 
     it('works for the negative case', () => {
@@ -132,10 +138,12 @@ describe('declarative', () => {
 
 describe('declarative async', () => {
   async function* usecaseImpl(input) {
-    return yield input
+    const validatedInput = yield input
       |> await validateAsync(#)
       |> mapLeft(x => 'mapped: ' + x)(#)
-      |> map(x => ({...x, validated: true }))(#)
+      |> map(x => ({ ...x, validated: true }))(#)
+
+    return validatedInput
   }
   const usecase = runableAsync(usecaseImpl)
 
@@ -149,7 +157,7 @@ describe('declarative async', () => {
     const result = await usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({...input, validated: true})
+    expect(result.right).toEqual({ ...input, validated: true })
   })
 
   it('works for the negative case', async () => {
@@ -174,10 +182,12 @@ describe('declarative async', () => {
     const validateGen = runableAsync(validateGenAsync)
 
     async function* usecaseImpl(input) {
-      return yield input
-      |> await validateGen(#)
-      |> mapLeft(x => 'mapped: ' + x)(#)
-      |> map(x => ({...x, validated: true}))(#)
+      const validatedInput = yield input
+        |> await validateGen(#)
+        |> mapLeft(x => 'mapped: ' + x)(#)
+        |> map(x => ({ ...x, validated: true }))(#)
+
+      return validatedInput
     }
     const usecase = runableAsync(usecaseImpl)
 
@@ -191,7 +201,7 @@ describe('declarative async', () => {
       const result = await usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual({...input, validated: true})
+      expect(result.right).toEqual({ ...input, validated: true })
     })
 
     it('works for the negative case', async () => {
@@ -223,16 +233,18 @@ const run = (gen) => {
   while (!result.done) {
     result = gen.next(val)
     val = result.value
-    // // support nested generators, so you don't need to worry about them.
-    // if (isGenerator(val)) {
-    //   val = run(val)
-    // }
+    if (!val || !val._tag) {
+      // the function returned a value?
+      continue
+    }
     // bail on error
     if (val._tag === 'Left') {
       return val
     }
+    // unwrap the Right value to pass to the next iteration.
+    val = val.right
   }
-  return val
+  return right(val)
 }
 
 const runAsync = async (gen) => {
@@ -241,12 +253,18 @@ const runAsync = async (gen) => {
   while (!result.done) {
     result = await gen.next(val)
     val = result.value
+    if (!val || !val._tag) {
+      // the function returned a value?
+      continue
+    }
     // bail on error
     if (val._tag === 'Left') {
       return val
     }
+    // unwrap the Right value to pass to the next iteration.
+    val = val.right
   }
-  return val
+  return right(val)
 }
 
 /*
