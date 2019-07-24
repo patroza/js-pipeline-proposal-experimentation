@@ -37,6 +37,11 @@ describe('imperative', () => {
   })
 })
 
+
+
+const runable = fnc => input => run(fnc(input))
+const runableAsync = fnc => input => runAsync(fnc(input))
+
 /*
   The issues with this approach:
   - we're using pipeline operator, hard to use in Typescript until proposal has stabilized
@@ -57,7 +62,7 @@ describe('declarative', () => {
     return true
   }
 
-  const usecase = input => run(usecaseImpl(input))
+  const usecase = runable(usecaseImpl)
 
   it('works', () => {
     const input = {
@@ -89,7 +94,7 @@ describe('declarative', () => {
       if (input.a !== 1) { return yield left('fail') }
       return input
     }
-    const validate = input => run(validateGen(input))
+    const validate = runable(validateGen)
 
     function* usecaseImpl(input) {
       const validatedInput = (
@@ -100,7 +105,7 @@ describe('declarative', () => {
 
       return true
     }
-    const usecase = input => run(usecaseImpl(input))
+    const usecase = runable(usecaseImpl)
 
     it('works', () => {
       const input = {
@@ -138,7 +143,7 @@ describe('declarative async', () => {
 
     return true
   }
-  const usecase = input => runAsync(usecaseImpl(input))
+  const usecase = runableAsync(usecaseImpl)
 
   it('works', async () => {
     const input = {
@@ -172,7 +177,7 @@ describe('declarative async', () => {
       }
       return right(input)
     }
-    const validateGen = input => runAsync(validateGenAsync(input))
+    const validateGen = runableAsync(validateGenAsync)
 
     async function* usecaseImpl(input) {
       const r = input
@@ -182,7 +187,7 @@ describe('declarative async', () => {
 
       return true
     }
-    const usecase = input => runAsync(usecaseImpl(input))
+    const usecase = runableAsync(usecaseImpl)
 
     it('works', async () => {
       const input = {
@@ -251,8 +256,6 @@ const runAsync = async (gen) => {
   }
   return right(val)
 }
-
-
 
 /*
   compose(
