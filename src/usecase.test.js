@@ -9,7 +9,7 @@ describe('imperative', () => {
       |> map(x => ({ ...x, validated: true }))(#)
     if (validatedInput._tag === "Left") { return left('mapped: ' + validatedInput.left) }
 
-    return validatedInput
+    return right(Boolean(validatedInput.right.validated))
   }
 
   it('works for positive case', () => {
@@ -22,7 +22,7 @@ describe('imperative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({ ...input, validated: true })
+    expect(result.right).toEqual(true)
   })
 
 
@@ -60,9 +60,9 @@ describe('declarative', () => {
       |> mapLeft(x => 'mapped: ' + x)(#)
       |> map(x => ({ ...x, validated: true }))(#)
 
-    if (validatedInput.validated !== true) { throw new Error('da faq: ' + validatedInput.validated) }
-
-    return validatedInput
+    const validatedIsTrue = yield right(validatedInput.validated)
+      |> map(x => Boolean(x))(#)
+    return validatedIsTrue
   }
 
   const usecase = runable(usecaseImpl)
@@ -77,7 +77,7 @@ describe('declarative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({ ...input, validated: true })
+    expect(result.right).toEqual(true)
   })
 
   it('works for the negative case', () => {
@@ -94,8 +94,8 @@ describe('declarative', () => {
 
   describe('nested generators ;-) without having to invoke `run` manually', () => {
     function* validateGen(input) {
-      if (input.a !== 1) { return left('fail') }
-      return right(input)
+      if (input.a !== 1) { return yield left('fail') }
+      return input
     }
     const validate = runable(validateGen)
 
@@ -105,7 +105,9 @@ describe('declarative', () => {
         |> mapLeft(x => 'mapped: ' + x)(#)
         |> map(x => ({ ...x, validated: true }))(#)
 
-      return validatedInput
+        const validatedIsTrue = yield right(validatedInput.validated)
+        |> map(x => Boolean(x))(#)
+      return validatedIsTrue
     }
     const usecase = runable(usecaseImpl)
 
@@ -119,7 +121,7 @@ describe('declarative', () => {
       const result = usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual({ ...input, validated: true })
+      expect(result.right).toEqual(true)
     })
 
     it('works for the negative case', () => {
@@ -143,8 +145,11 @@ describe('declarative async', () => {
       |> mapLeft(x => 'mapped: ' + x)(#)
       |> map(x => ({ ...x, validated: true }))(#)
 
-    return validatedInput
+    const validatedIsTrue = yield right(validatedInput.validated)
+      |> map(x => Boolean(x))(#)
+    return validatedIsTrue
   }
+
   const usecase = runableAsync(usecaseImpl)
 
   it('works', async () => {
@@ -157,7 +162,7 @@ describe('declarative async', () => {
     const result = await usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual({ ...input, validated: true })
+    expect(result.right).toEqual(true)
   })
 
   it('works for the negative case', async () => {
@@ -175,9 +180,9 @@ describe('declarative async', () => {
   describe('nested generators ;-) without having to invoke `run` manually', () => {
     async function* validateGenAsync(input) {
       if (input.a !== 1) {
-        return await Promise.resolve(left('fail'))
+        return yield await Promise.resolve(left('fail'))
       }
-      return right(input)
+      return input
     }
     const validateGen = runableAsync(validateGenAsync)
 
@@ -186,8 +191,9 @@ describe('declarative async', () => {
         |> await validateGen(#)
         |> mapLeft(x => 'mapped: ' + x)(#)
         |> map(x => ({ ...x, validated: true }))(#)
-
-      return validatedInput
+      const validatedIsTrue = yield right(validatedInput.validated)
+        |> map(x => Boolean(x))(#)
+      return validatedIsTrue
     }
     const usecase = runableAsync(usecaseImpl)
 
@@ -201,7 +207,7 @@ describe('declarative async', () => {
       const result = await usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual({ ...input, validated: true })
+      expect(result.right).toEqual(true)
     })
 
     it('works for the negative case', async () => {
