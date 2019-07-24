@@ -1,10 +1,12 @@
 import { left, right, mapLeft, map, } from 'fp-ts/lib/Either'
+import { pipe } from 'fp-ts/lib/pipeable'
 import { isTSAnyKeyword } from '@babel/types';
 
 describe('imperative', () => {
   const usecase = (input) => {
     const validatedInput = input
       |> validate
+      |> map(x => ({...x, validated: true}))(#)
     if (validatedInput._tag === "Left") { return left('mapped: ' + validatedInput.left) }
 
     return validatedInput
@@ -20,7 +22,7 @@ describe('imperative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual(input)
+    expect(result.right).toEqual({...input, validated: true})
   })
 
 
@@ -53,13 +55,10 @@ const runableAsync = fnc => input => runAsync(fnc(input))
 */
 describe('declarative', () => {
   function* usecaseImpl(input) {
-    const validatedInput = (
-      yield input
+      return yield input
       |> validate
       |> mapLeft(x => 'mapped: ' + x)(#)
-    )
-
-    return true
+      |> map(x => ({...x, validated: true}))(#)
   }
 
   const usecase = runable(usecaseImpl)
@@ -74,7 +73,7 @@ describe('declarative', () => {
     const result = usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual(true)
+    expect(result.right).toEqual({...input, validated: true})
   })
 
   it('works for the negative case', () => {
@@ -91,19 +90,16 @@ describe('declarative', () => {
 
   describe('nested generators ;-) without having to invoke `run` manually', () => {
     function* validateGen(input) {
-      if (input.a !== 1) { return yield left('fail') }
-      return input
+      if (input.a !== 1) { return left('fail') }
+      return right(input)
     }
     const validate = runable(validateGen)
 
     function* usecaseImpl(input) {
-      const validatedInput = (
-        yield input
-        |> validate
-        |> mapLeft(x => 'mapped: ' + x)(#)
-      )
-
-      return true
+      return yield input
+      |> validate
+      |> mapLeft(x => 'mapped: ' + x)(#)
+      |> map(x => ({...x, validated: true}))(#)
     }
     const usecase = runable(usecaseImpl)
 
@@ -117,7 +113,7 @@ describe('declarative', () => {
       const result = usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual(true)
+      expect(result.right).toEqual({...input, validated: true})
     })
 
     it('works for the negative case', () => {
@@ -136,12 +132,10 @@ describe('declarative', () => {
 
 describe('declarative async', () => {
   async function* usecaseImpl(input) {
-    const validatedInput =
-      yield input
+    return yield input
       |> await validateAsync(#)
       |> mapLeft(x => 'mapped: ' + x)(#)
-
-    return true
+      |> map(x => ({...x, validated: true }))(#)
   }
   const usecase = runableAsync(usecaseImpl)
 
@@ -155,7 +149,7 @@ describe('declarative async', () => {
     const result = await usecase(input)
 
     expect(result._tag).toBe('Right')
-    expect(result.right).toEqual(true)
+    expect(result.right).toEqual({...input, validated: true})
   })
 
   it('works for the negative case', async () => {
@@ -180,12 +174,10 @@ describe('declarative async', () => {
     const validateGen = runableAsync(validateGenAsync)
 
     async function* usecaseImpl(input) {
-      const r = input
-        |> await validateGen(#)
-        |> mapLeft(x => 'mapped: ' + x)(#)
-      const validatedInput = yield r
-
-      return true
+      return yield input
+      |> await validateGen(#)
+      |> mapLeft(x => 'mapped: ' + x)(#)
+      |> map(x => ({...x, validated: true}))(#)
     }
     const usecase = runableAsync(usecaseImpl)
 
@@ -199,7 +191,7 @@ describe('declarative async', () => {
       const result = await usecase(input)
 
       expect(result._tag).toBe('Right')
-      expect(result.right).toEqual(true)
+      expect(result.right).toEqual({...input, validated: true})
     })
 
     it('works for the negative case', async () => {
@@ -240,7 +232,7 @@ const run = (gen) => {
       return val
     }
   }
-  return right(val)
+  return val
 }
 
 const runAsync = async (gen) => {
@@ -254,7 +246,7 @@ const runAsync = async (gen) => {
       return val
     }
   }
-  return right(val)
+  return val
 }
 
 /*
